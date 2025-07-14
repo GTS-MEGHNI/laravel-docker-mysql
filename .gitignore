@@ -22,3 +22,5 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+deploy_app_scale.bat
+deploy_mysql.bat

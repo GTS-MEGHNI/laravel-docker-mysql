@@ -1,0 +1,132 @@
+pipeline {
+    agent any
+    
+    environment {
+        APP_KEY = credentials('app-key') 
+        DB_USERNAME = credentials('db-username')
+        DB_PASSWORD = credentials('db-password')
+    }
+    parameters {
+        string(name: 'GIT_REPO_URL', defaultValue: 'git@github.com:GTS-MEGHNI/laravel-docker-mysql.git', description: 'SSH URL of the Git repository')
+        string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Branch to clone')
+        string(name: 'APP_URL', defaultValue: 'http://localhost:9000', description: 'The application URL')
+        string(name: 'DB_CONNECTION', defaultValue: 'mysql', description: 'Database connection type')
+        string(name: 'DB_HOST', defaultValue: 'mysql_container', description: 'Database host')
+        string(name: 'DB_PORT', defaultValue: '3306', description: 'Database port')
+        string(name: 'DB_DATABASE', defaultValue: 'laravel', description: 'Database name')
+        string(name: 'SCALE_COUNT', defaultValue: '1', description: 'Number of app containers to scale')
+    }
+
+    stages {
+        stage('Pull from Git') {
+            steps {
+                git credentialsId: 'github-ssh-key',
+                    url: params.GIT_REPO_URL,
+                    branch: params.GIT_BRANCH
+            }
+        }
+
+        stage('Generate .env file') {
+            steps {
+                sh '''
+                cat <<EOF > .env
+APP_NAME=Laravel
+APP_ENV=production
+APP_KEY=${APP_KEY}
+APP_DEBUG=false
+APP_URL=${APP_URL}
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+
+APP_MAINTENANCE_DRIVER=file
+# APP_MAINTENANCE_STORE=database
+
+PHP_CLI_SERVER_WORKERS=4
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+DB_CONNECTION=${DB_CONNECTION}
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_DATABASE=${DB_DATABASE}
+DB_USERNAME=${DB_USERNAME}
+DB_PASSWORD=${DB_PASSWORD}
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+QUEUE_CONNECTION=database
+
+CACHE_STORE=database
+# CACHE_PREFIX=
+
+MEMCACHED_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_SCHEME=null
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="\${APP_NAME}"
+
+VITE_APP_NAME="\${APP_NAME}"
+EOF
+                '''
+                echo ".env file generated successfully."
+            }
+        }
+        stage('Build Docker App') {
+            steps {
+                sh 'docker compose build app'
+            }
+        }
+        stage('Build Nginx Docker Image') {
+            steps {
+                sh 'docker compose build nginx'
+            }
+        }
+        stage('Stop Docker Containers') {
+            steps {
+                sh 'docker compose down'
+            }
+        }
+        stage('Start Docker Containers') {
+            steps {
+                sh "docker compose -p laravel up --scale app=${params.SCALE_COUNT} -d"
+            }
+        }
+        stage('Run Migrations') {
+            steps {
+                sh "docker exec \$(docker ps -qf \"name=app\") php artisan migrate --force"
+            }
+        }
+
+    }
+    post {
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}

@@ -72,33 +72,7 @@ sudo systemctl status jenkins
 
 # ==========================================
 
-# 4. Install and Configure Nginx
-
-# ==========================================
-
-echo "Installing Nginx..."
-
-sudo apt install -y nginx
-
-echo "Checking Nginx version..."
-
-nginx -v
-
-echo "Starting Nginx..."
-
-sudo service nginx start
-
-sudo systemctl enable nginx
-
-sudo service nginx status
-
-echo "Host IP address:"
-
-hostname -I
-
-# ==========================================
-
-# 5. Install Docker
+# 4. Install Docker
 
 # ==========================================
 
@@ -138,7 +112,7 @@ sudo docker run hello-world
 
 # ==========================================
 
-# 6. Add Jenkins to Docker Group
+# 5. Add Jenkins to Docker Group
 
 # ==========================================
 
@@ -152,7 +126,7 @@ sudo systemctl restart jenkins
 
 # ==========================================
 
-# 7. Create Docker Network and Run MySQL Container
+# 6. Create Docker Network and Run MySQL Container
 
 # ==========================================
 
@@ -184,3 +158,22 @@ sudo docker container run -d \
   mysql:latest
 
 echo "MySQL container is up and running."
+
+
+# ==========================================
+
+# 7. Add GitHub to Known Hosts for Jenkins
+
+# ==========================================
+
+echo "Adding GitHub to known SSH hosts for Jenkins user..."
+
+sudo -u jenkins mkdir -p /var/lib/jenkins/.ssh
+sudo ssh-keyscan github.com | sudo tee -a /var/lib/jenkins/.ssh/known_hosts
+
+# Set appropriate permissions
+sudo chown -R jenkins:jenkins /var/lib/jenkins/.ssh
+sudo chmod 700 /var/lib/jenkins/.ssh
+sudo chmod 644 /var/lib/jenkins/.ssh/known_hosts
+
+echo "GitHub host key added to Jenkins user's known_hosts."
