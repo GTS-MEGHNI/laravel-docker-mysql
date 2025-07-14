@@ -1,0 +1,34 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: laravel-image
+        restart: unless-stopped
+        networks:
+            - laravel_network
+        volumes:
+            - laravel_storage:/var/www/html/storage
+        expose:
+            - "9000"
+    nginx:
+        build:
+            context: ./deploy/nginx
+            dockerfile: Dockerfile
+        image: laravel-nginx
+        container_name: nginx
+        restart: unless-stopped
+        depends_on:
+            - app
+        ports:
+            - "80:80"
+        networks:
+            - laravel_network
+networks:
+    laravel_network:
+        driver: bridge
+        name: laravel_network
+        external: true
+volumes:
+    laravel_storage:
+        external: true
